@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { makeConfig, runWithSnapshots, type PresetId } from '../sim/index';
 import ControlPanel, { type Speed } from './ControlPanel';
+import Blob from './Blob';
 import McPanel from './McPanel';
 import type { PlaybackClock } from './Scene3D';
 import SplitView, { type ViewRun } from './SplitView';
+import { PALETTE } from './theme';
 
 function useRun(id: PresetId, seed: number): ViewRun {
   return useMemo(() => {
@@ -76,11 +78,15 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-x-hidden">
-      <header className="flex items-baseline gap-3 bg-slate-950 px-4 pt-3 pb-2">
-        <h1 className="text-lg font-bold">🐜 懶螞蟻公司模擬器</h1>
-        <p className="text-xs text-slate-400">反應門檻 × 過勞機制 × 大急單衝擊 · 3D ABM</p>
+    <div className="flex h-full flex-col overflow-x-hidden bg-white text-ink">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-6 pt-4 pb-3">
+        <h1 className="flex items-center gap-2 text-lg font-bold">
+          <Blob color={PALETTE.blue} size={22} />
+          懶螞蟻公司模擬器
+        </h1>
+        <p className="text-xs text-mute">反應門檻 × 過勞機制 × 大急單衝擊 · 3D ABM</p>
       </header>
+      <div className="px-4">
       <ControlPanel
         split={split}
         onSplit={setSplit}
@@ -100,7 +106,8 @@ export default function App() {
         week={week}
         maxWeek={maxIndex}
       />
-      <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      </div>
+      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-h-[70vh] min-w-0 lg:min-h-0">
           <SplitView runs={runs} clock={clock} week={week} />
         </div>

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { AgentView, WeekSnapshot } from '../sim/index';
+import { INK, PALETTE, TINT } from './theme';
 
 /** Playback clock shared by every view: `t` is a fractional week index into snapshots. */
 export interface PlaybackClock {
@@ -28,22 +30,32 @@ const ZONE_X0 = 3.2;
 const ZONE_CELL = 0.95;
 const TEA_Z0 = -7.6;
 const WARD_Z0 = 1.2;
-const zoneSlot = (i: number, z0: number): [number, number] => [ZONE_X0 + (i % 10) * ZONE_CELL, z0 + Math.floor(i / 10) * ZONE_CELL * 0.7];
+const zoneSlot = (i: number, z0: number): [number, number] => [
+  ZONE_X0 + (i % 10) * ZONE_CELL,
+  z0 + Math.floor(i / 10) * ZONE_CELL * 0.7,
+];
 const ZONE_W = 9 * ZONE_CELL + 1.4;
 const ZONE_D = 9 * ZONE_CELL * 0.7 + 1.4;
 const ZONE_CX = ZONE_X0 + (9 * ZONE_CELL) / 2;
 
 const TASK_SCALE = 0.12; // world units per backlog task
-const BODY_Y = 0.55;
+const TILE_TASKS = 2; // one stacked tile = 2 tasks
+const TILE_PITCH = TASK_SCALE * TILE_TASKS;
+const MAX_TILES = 90;
+const K = 1.15; // 糰子整體放大倍率
+const BODY_Y = 0.47;
 
+// ---------- Palette (four hues only) ----------
+const C_BLUE = new THREE.Color(PALETTE.blue);
+const C_BUTTER = new THREE.Color(PALETTE.butter);
+const C_LAV = new THREE.Color(PALETTE.lavender);
+const C_CORAL = new THREE.Color(PALETTE.coral);
+const C_GRAY = new THREE.Color('#cfd4de');
 const ROLE_COLOR: Record<AgentView['role'], THREE.Color> = {
-  LOW_THRESHOLD: new THREE.Color('#3b82f6'),
-  HIGH_THRESHOLD: new THREE.Color('#facc15'),
-  TRUE_SLACKER: new THREE.Color('#a855f7'),
+  LOW_THRESHOLD: C_BLUE,
+  HIGH_THRESHOLD: C_BUTTER,
+  TRUE_SLACKER: C_LAV,
 };
-const RED = new THREE.Color('#ef4444');
-const STAM_LOW = new THREE.Color('#ef4444');
-const STAM_HIGH = new THREE.Color('#22c55e');
 
 function target(a: AgentView): [number, number] {
   if (a.state === 'RESTING') return zoneSlot(a.id, TEA_Z0);
@@ -53,6 +65,14 @@ function target(a: AgentView): [number, number] {
 
 const ease = (x: number) => x * x * (3 - 2 * x);
 
+function sampleClock(len: number, t: number) {
+  const last = len - 1;
+  const tt = Math.min(Math.max(t, 0), last);
+  const i0 = Math.floor(tt);
+  const i1 = Math.min(i0 + 1, last);
+  return { i0, i1, f: ease(tt - i0) };
+}
+
 interface Props {
   snapshots: readonly WeekSnapshot[];
   clock: MutableRefObject<PlaybackClock>;
@@ -61,164 +81,256 @@ interface Props {
   label?: string;
 }
 
+/** 圓滾滾、兩隻腳的小精靈：身體 / 雙腳 / 雙眼 / 頭頂體力條，各自一個 InstancedMesh。 */
 function Agents({ snapshots, clock }: Pick<Props, 'snapshots' | 'clock'>) {
   const n = snapshots[0].agents.length;
   const bodies = useRef<THREE.InstancedMesh>(null);
+  const feet = useRef<THREE.InstancedMesh>(null);
+  const eyes = useRef<THREE.InstancedMesh>(null);
   const bars = useRef<THREE.InstancedMesh>(null);
-  const tmp = useMemo(() => new THREE.Object3D(), []);
+  const tracks = useRef<THREE.InstancedMesh>(null);
+  const o = useMemo(() => new THREE.Object3D(), []);
   const col = useMemo(() => new THREE.Color(), []);
+  const col2 = useMemo(() => new THREE.Color(), []);
 
   useFrame(({ clock: c }) => {
-    const b = bodies.current;
-    const s = bars.current;
-    if (!b || !s) return;
+    const B = bodies.current;
+    const F = feet.current;
+    const E = eyes.current;
+    const S = bars.current;
+    const T = tracks.current;
+    if (!B || !F || !E || !S || !T) return;
     const time = c.elapsedTime;
-    const last = snapshots.length - 1;
-    const t = Math.min(Math.max(clock.current.t, 0), last);
-    const i0 = Math.floor(t);
-    const i1 = Math.min(i0 + 1, last);
-    const f = ease(t - i0);
-    const A = snapshots[i0].agents;
-    const B = snapshots[i1].agents;
+    const { i0, i1, f } = sampleClock(snapshots.length, clock.current.t);
+    const A0 = snapshots[i0].agents;
+    const A1 = snapshots[i1].agents;
     for (let i = 0; i < n; i++) {
-      const a = A[i];
-      const z = B[i];
+      const a = A0[i];
+      const z = A1[i];
       const [ax, az] = target(a);
       const [bx, bz] = target(z);
       const x = ax + (bx - ax) * f;
       const zz = az + (bz - az) * f;
       const cur = f < 0.5 ? a : z;
-      const bounce = cur.state === 'WORKING' ? Math.abs(Math.sin(time * 9 + i * 1.7)) * 0.18 : 0;
-      const downA = a.state === 'BURNOUT' ? 1 : 0;
-      const downB = z.state === 'BURNOUT' ? 1 : 0;
-      const down = downA + (downB - downA) * f;
-      tmp.position.set(x, BODY_Y - down * 0.25 + bounce, zz);
-      tmp.rotation.set(0, 0, (down * Math.PI) / 2);
-      tmp.scale.setScalar(1);
-      tmp.updateMatrix();
-      b.setMatrixAt(i, tmp.matrix);
+      const moving = f > 0.03 && f < 0.97 && (ax !== bx || az !== bz);
+      const working = cur.state === 'WORKING';
+      const phase = time * (moving ? 15 : 9) + i * 1.7;
+      const hop = moving ? Math.abs(Math.sin(phase)) * 0.12 : working ? Math.abs(Math.sin(phase)) * 0.18 : 0;
+      const dA = a.state === 'BURNOUT' ? 1 : 0;
+      const dB = z.state === 'BURNOUT' ? 1 : 0;
+      const down = dA + (dB - dA) * f;
+      const sway = !moving && !working && down < 0.5 ? Math.sin(time * 1.6 + i) * 0.05 : 0;
+      const rot = down * (Math.PI / 2) + sway;
+      const cs = Math.cos(rot);
+      const sn = Math.sin(rot);
+      const by = BODY_Y - down * 0.12 + hop;
 
+      // body color
       col.copy(ROLE_COLOR[cur.role]);
-      if (cur.state === 'BURNOUT') col.copy(RED).multiplyScalar(0.55 + 0.45 * (0.5 + 0.5 * Math.sin(time * 8)));
-      else if (cur.state === 'FAKE_BUSY') col.multiplyScalar(0.55);
-      b.setColorAt(i, col);
+      if (cur.state === 'BURNOUT') col.lerp(C_CORAL, 0.72 + 0.25 * (0.5 + 0.5 * Math.sin(time * 8)));
+      else if (cur.state === 'FAKE_BUSY') col.lerp(C_GRAY, 0.5);
+      col2.copy(col).multiplyScalar(0.88);
 
+      // body
+      o.position.set(x, by, zz);
+      o.rotation.set(0, 0, rot);
+      o.scale.set(K, 0.95 * K, K);
+      o.updateMatrix();
+      B.setMatrixAt(i, o.matrix);
+      B.setColorAt(i, col);
+
+      for (let k = 0; k < 2; k++) {
+        const s = k === 0 ? -1 : 1;
+        // feet: alternate steps while moving / working
+        const active = moving || working;
+        const swing = active ? Math.sin(phase + (s > 0 ? Math.PI : 0)) : 0;
+        const lift = active ? Math.max(0, swing) * 0.1 : 0;
+        const ox = s * 0.19 * K;
+        const oy = -0.36 * K + lift;
+        const oz = 0.17 * K + swing * (moving ? 0.14 : 0.05);
+        o.position.set(x + ox * cs - oy * sn, Math.max(0.1, by + ox * sn + oy * cs), zz + oz);
+        o.rotation.set(0, 0, 0);
+        o.scale.set(0.16, 0.1, 0.21);
+        o.updateMatrix();
+        F.setMatrixAt(i * 2 + k, o.matrix);
+        F.setColorAt(i * 2 + k, col2);
+
+        // eyes: closed when burnt out
+        const ex = s * 0.14 * K;
+        const ey = 0.09 * K;
+        o.position.set(x + ex * cs - ey * sn, by + ex * sn + ey * cs, zz + 0.4 * K);
+        o.rotation.set(0, 0, rot);
+        o.scale.set(0.058, cur.state === 'BURNOUT' ? 0.014 : 0.064, 0.058);
+        o.updateMatrix();
+        E.setMatrixAt(i * 2 + k, o.matrix);
+      }
+
+      // stamina bar (rounded: a flattened ellipsoid)
       const stamina = a.stamina + (z.stamina - a.stamina) * f;
-      const w = Math.max(0.02, stamina / 100);
-      tmp.position.set(x - (1 - w) * 0.3, 1.45 - down * 0.9 + bounce, zz);
-      tmp.rotation.set(0, 0, 0);
-      tmp.scale.set(w, 1, 1);
-      tmp.updateMatrix();
-      s.setMatrixAt(i, tmp.matrix);
-      col.copy(STAM_LOW).lerp(STAM_HIGH, stamina / 100);
-      s.setColorAt(i, col);
+      const w = Math.max(0.03, stamina / 100);
+      const barY = by + 0.98 * K;
+      o.position.set(x, barY, zz + 0.1);
+      o.scale.set(0.4, 0.095, 0.08);
+      o.updateMatrix();
+      T.setMatrixAt(i, o.matrix);
+      o.position.set(x - 0.36 * (1 - w), barY, zz + 0.13);
+      o.rotation.set(0, 0, 0);
+      o.scale.set(0.36 * w, 0.075, 0.075);
+      o.updateMatrix();
+      S.setMatrixAt(i, o.matrix);
+      S.setColorAt(i, stamina > 30 ? C_BLUE : C_CORAL);
     }
-    b.instanceMatrix.needsUpdate = true;
-    s.instanceMatrix.needsUpdate = true;
-    if (b.instanceColor) b.instanceColor.needsUpdate = true;
-    if (s.instanceColor) s.instanceColor.needsUpdate = true;
+    T.instanceMatrix.needsUpdate = true;
+    for (const m of [B, F, E, S]) {
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
   });
 
   return (
     <>
-      <instancedMesh ref={bodies} args={[undefined, undefined, n]} castShadow>
-        <capsuleGeometry args={[0.3, 0.38, 6, 14]} />
-        <meshStandardMaterial roughness={0.45} />
+      <instancedMesh ref={bodies} args={[undefined, undefined, n]} castShadow frustumCulled={false}>
+        <sphereGeometry args={[0.4, 28, 20]} />
+        <meshStandardMaterial roughness={0.8} />
       </instancedMesh>
-      <instancedMesh ref={bars} args={[undefined, undefined, n]}>
-        <boxGeometry args={[0.6, 0.07, 0.07]} />
+      <instancedMesh ref={feet} args={[undefined, undefined, n * 2]} frustumCulled={false}>
+        <sphereGeometry args={[1, 14, 10]} />
+        <meshStandardMaterial roughness={0.8} />
+      </instancedMesh>
+      <instancedMesh ref={eyes} args={[undefined, undefined, n * 2]} frustumCulled={false}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color={INK} roughness={0.4} />
+      </instancedMesh>
+      <instancedMesh ref={tracks} args={[undefined, undefined, n]} frustumCulled={false}>
+        <sphereGeometry args={[1, 12, 8]} />
+        <meshBasicMaterial color="#e3e7ef" />
+      </instancedMesh>
+      <instancedMesh ref={bars} args={[undefined, undefined, n]} frustumCulled={false}>
+        <sphereGeometry args={[1, 12, 8]} />
         <meshBasicMaterial />
       </instancedMesh>
     </>
   );
 }
 
+/** 待辦任務堆疊柱：一塊圓角方塊 = 2 件工單，超過警戒 20 逐漸轉珊瑚色並閃爍。 */
 function BacklogPillar({ snapshots, clock, collapseThreshold, alertLevel }: Omit<Props, 'label'>) {
-  const pillar = useRef<THREE.Mesh>(null);
+  const tiles = useRef<THREE.InstancedMesh>(null);
   const mat = useRef<THREE.MeshStandardMaterial>(null);
-  const light = useRef<THREE.PointLight>(null);
+  const wall = useRef<THREE.MeshBasicMaterial>(null);
   const ringMat = useRef<THREE.MeshStandardMaterial>(null);
+  const light = useRef<THREE.PointLight>(null);
+  const o = useMemo(() => new THREE.Object3D(), []);
+  const col = useMemo(() => new THREE.Color(), []);
+  const geo = useMemo(() => new RoundedBoxGeometry(1.1, 0.2, 1.1, 3, 0.09), []);
+
   useFrame(({ clock: c }) => {
-    const last = snapshots.length - 1;
-    const t = Math.min(Math.max(clock.current.t, 0), last);
-    const i0 = Math.floor(t);
-    const i1 = Math.min(i0 + 1, last);
-    const f = ease(t - i0);
+    const m = tiles.current;
+    if (!m) return;
+    const { i0, i1, f } = sampleClock(snapshots.length, clock.current.t);
     const backlog = snapshots[i0].backlog + (snapshots[i1].backlog - snapshots[i0].backlog) * f;
-    const h = Math.max(0.02, backlog * TASK_SCALE);
-    if (pillar.current) {
-      pillar.current.scale.y = h;
-      pillar.current.position.y = h / 2;
+    const t = backlog / TILE_TASKS;
+    const full = Math.floor(t);
+    const frac = t - full;
+    const count = Math.min(MAX_TILES, full + (frac > 0.08 ? 1 : 0));
+    m.count = count;
+    for (let i = 0; i < count; i++) {
+      const sy = i === full ? Math.max(0.3, frac) : 1;
+      const wob = Math.sin(c.elapsedTime * 2 + i * 0.5) * 0.02 * Math.min(1, i / 20);
+      o.position.set(wob, i * TILE_PITCH + 0.1 * sy, 0);
+      o.rotation.set(0, i * 0.07, 0);
+      o.scale.set(1, sy, 1);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+      const tasks = i * TILE_TASKS;
+      if (tasks >= collapseThreshold) col.copy(C_CORAL);
+      else if (tasks >= alertLevel) col.copy(C_BUTTER).lerp(C_CORAL, (tasks - alertLevel) / (collapseThreshold - alertLevel));
+      else col.copy(C_BUTTER);
+      m.setColorAt(i, col);
     }
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+
     const alert = backlog >= alertLevel;
     const blink = alert ? 0.5 + 0.5 * Math.sin(c.elapsedTime * 10) : 0;
-    if (mat.current) mat.current.emissiveIntensity = alert ? 0.3 + blink * 0.9 : 0.05;
-    if (light.current) light.current.intensity = alert ? 6 + blink * 30 : 0;
-    if (ringMat.current) ringMat.current.emissiveIntensity = 0.6 + blink * 1.2;
+    if (mat.current) mat.current.emissiveIntensity = alert ? 0.15 + blink * 0.55 : 0;
+    if (wall.current) wall.current.opacity = 0.08 + blink * 0.14;
+    if (ringMat.current) ringMat.current.emissiveIntensity = 0.25 + blink * 0.9;
+    if (light.current) light.current.intensity = alert ? 4 + blink * 22 : 0;
   });
+
   const ringY = collapseThreshold * TASK_SCALE;
   return (
     <group position={[PILLAR[0], 0, PILLAR[1]]}>
-      <mesh ref={pillar} castShadow>
-        <boxGeometry args={[0.9, 1, 0.9]} />
-        <meshStandardMaterial ref={mat} color="#f97316" emissive="#ef4444" />
-      </mesh>
+      <instancedMesh ref={tiles} args={[geo, undefined, MAX_TILES]} castShadow frustumCulled={false}>
+        <meshStandardMaterial ref={mat} roughness={0.7} emissive={PALETTE.coral} />
+      </instancedMesh>
       <mesh position={[0, ringY, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.0, 0.06, 10, 48]} />
-        <meshStandardMaterial ref={ringMat} color="#ef4444" emissive="#ef4444" />
+        <torusGeometry args={[1.05, 0.07, 14, 56]} />
+        <meshStandardMaterial ref={ringMat} color={PALETTE.coral} emissive={PALETTE.coral} />
       </mesh>
       <mesh position={[0, ringY / 2, 0]}>
-        <cylinderGeometry args={[1.0, 1.0, ringY, 32, 1, true]} />
-        <meshBasicMaterial color="#ef4444" transparent opacity={0.06} side={THREE.DoubleSide} depthWrite={false} />
+        <cylinderGeometry args={[1.05, 1.05, ringY, 40, 1, true]} />
+        <meshBasicMaterial ref={wall} color={PALETTE.coral} transparent opacity={0.08} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <pointLight ref={light} position={[0, ringY + 1, 0]} color="#ff2020" distance={18} />
+      <pointLight ref={light} position={[0, ringY + 1, 0]} color={PALETTE.coral} distance={16} />
     </group>
+  );
+}
+
+function Pill({ children }: { children: string }) {
+  return (
+    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium whitespace-nowrap text-ink shadow-md">
+      {children}
+    </span>
   );
 }
 
 function Zones() {
   const desks = useRef<THREE.InstancedMesh>(null);
+  const deskGeo = useMemo(() => new RoundedBoxGeometry(0.9, 0.1, 0.38, 3, 0.045), []);
+  // 桌位固定；和其他物件一樣在 useFrame 內寫入矩陣（只寫一次在此環境下不會顯示）
+  const deskMatrices = useMemo(() => {
+    const o = new THREE.Object3D();
+    return Array.from({ length: 100 }, (_, i) => {
+      const [x, z] = deskPos(i);
+      o.position.set(x, 0.05, z + 0.5);
+      o.updateMatrix();
+      return o.matrix.clone();
+    });
+  }, []);
+  useFrame(() => {
+    const m = desks.current;
+    if (!m) return;
+    for (let i = 0; i < 100; i++) m.setMatrixAt(i, deskMatrices[i]);
+    m.instanceMatrix.needsUpdate = true;
+  });
+  const officeGeo = useMemo(() => new RoundedBoxGeometry(OFFICE_W, 0.3, OFFICE_W, 4, 0.14), []);
+  const zoneGeo = useMemo(() => new RoundedBoxGeometry(ZONE_W, 0.3, ZONE_D, 4, 0.14), []);
+  const teaZ = TEA_Z0 + (ZONE_D - 1.4) / 2;
+  const wardZ = WARD_Z0 + (ZONE_D - 1.4) / 2;
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[OFFICE_CX, 0, OFFICE_CZ]} receiveShadow>
-        <planeGeometry args={[OFFICE_W, OFFICE_W]} />
-        <meshStandardMaterial color="#2a3142" />
+      <mesh geometry={officeGeo} position={[OFFICE_CX, -0.15, OFFICE_CZ]} receiveShadow>
+        <meshStandardMaterial color={TINT.floor} roughness={0.95} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[ZONE_CX, 0.001, TEA_Z0 + (ZONE_D - 1.4) / 2]} receiveShadow>
-        <planeGeometry args={[ZONE_W, ZONE_D]} />
-        <meshStandardMaterial color="#1f6b45" />
+      <mesh geometry={zoneGeo} position={[ZONE_CX, -0.15, teaZ]} receiveShadow>
+        <meshStandardMaterial color={TINT.butter} roughness={0.95} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[ZONE_CX, 0.001, WARD_Z0 + (ZONE_D - 1.4) / 2]} receiveShadow>
-        <planeGeometry args={[ZONE_W, ZONE_D]} />
-        <meshStandardMaterial color="#4b4f58" />
+      <mesh geometry={zoneGeo} position={[ZONE_CX, -0.15, wardZ]} receiveShadow>
+        <meshStandardMaterial color={TINT.coral} roughness={0.95} />
       </mesh>
-      <instancedMesh
-        ref={(m) => {
-          desks.current = m;
-          if (!m) return;
-          const o = new THREE.Object3D();
-          for (let i = 0; i < 100; i++) {
-            const [x, z] = deskPos(i);
-            o.position.set(x, 0.05, z + 0.45);
-            o.updateMatrix();
-            m.setMatrixAt(i, o.matrix);
-          }
-          m.instanceMatrix.needsUpdate = true;
-        }}
-        args={[undefined, undefined, 100]}
-        receiveShadow
-      >
-        <boxGeometry args={[0.9, 0.1, 0.35]} />
-        <meshStandardMaterial color="#56607a" />
+      <instancedMesh ref={desks} args={[deskGeo, undefined, 100]} receiveShadow frustumCulled={false}>
+        <meshStandardMaterial color={TINT.desk} roughness={0.9} />
       </instancedMesh>
       <Html position={[OFFICE_CX, 0, OFFICE_Z0 + 9 * CELL + AISLE + 1.2]} center>
-        <span className="rounded bg-black/50 px-2 py-0.5 text-xs whitespace-nowrap text-slate-200">辦公區</span>
+        <Pill>辦公區</Pill>
       </Html>
       <Html position={[ZONE_CX, 0, TEA_Z0 - 0.9]} center>
-        <span className="rounded bg-black/50 px-2 py-0.5 text-xs whitespace-nowrap text-emerald-200">茶水間</span>
+        <Pill>茶水間</Pill>
       </Html>
       <Html position={[ZONE_CX, 0, WARD_Z0 - 0.9]} center>
-        <span className="rounded bg-black/50 px-2 py-0.5 text-xs whitespace-nowrap text-slate-300">過勞休養區</span>
+        <Pill>過勞休養區</Pill>
       </Html>
     </>
   );
@@ -231,9 +343,8 @@ function CameraFit() {
   const { camera, size } = useThree();
   const aspect = size.width / Math.max(1, size.height);
   useEffect(() => {
-    // Horizontal fit for ~24 world units of floor; never closer than the default.
-    const d = Math.max(32, 40 / aspect);
-    camera.position.set(SCENE_CENTER.x, d * 0.72, d * 0.7);
+    const d = Math.max(28, 47 / aspect);
+    camera.position.set(SCENE_CENTER.x, d * 0.74, d * 0.64);
     camera.lookAt(SCENE_CENTER);
   }, [camera, aspect]);
   return null;
@@ -242,10 +353,12 @@ function CameraFit() {
 export default function Scene3D(props: Props) {
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <Canvas shadows camera={{ position: [-1, 21, 21], fov: 45 }} dpr={[1, 2]}>
-        <color attach="background" args={['#12151c']} />
-        <hemisphereLight args={['#dbe7ff', '#1a1d26', 0.9]} />
-        <directionalLight position={[8, 18, 10]} intensity={1.6} castShadow shadow-mapSize={[1024, 1024]}>
+      {/* flat = 關閉 tone mapping，粉彩色票才不會被壓暗或變灰 */}
+      <Canvas flat shadows camera={{ position: [-1, 21, 21], fov: 45 }} dpr={[1, 2]}>
+        {/* three.js 為物理單位：朝上的表面需要約 π 的總照度，白色才會顯示成白色 */}
+        <ambientLight intensity={1.25} />
+        <hemisphereLight args={['#ffffff', '#eef1f7', 0.9]} />
+        <directionalLight position={[8, 18, 10]} intensity={1.15} castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0005}>
           <orthographicCamera attach="shadow-camera" args={[-20, 20, 14, -14, 1, 60]} />
         </directionalLight>
         <Zones />
@@ -255,7 +368,7 @@ export default function Scene3D(props: Props) {
         <OrbitControls target={SCENE_CENTER} maxPolarAngle={Math.PI / 2.1} />
       </Canvas>
       {props.label && (
-        <div className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-2 py-1 text-sm font-medium">
+        <div className="pointer-events-none absolute top-3 left-3 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-ink shadow-md">
           {props.label}
         </div>
       )}

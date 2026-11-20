@@ -7,6 +7,15 @@ export interface ViewRun {
   snapshots: readonly WeekSnapshot[];
 }
 
+function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
+  return (
+    <div>
+      <span className="text-mute">{label} </span>
+      <b className={`text-ink ${tone ?? ''}`}>{value}</b>
+    </div>
+  );
+}
+
 function Hud({ run, week }: { run: ViewRun; week: number }) {
   const i = Math.min(week, run.snapshots.length - 1);
   const s = run.snapshots[i];
@@ -14,38 +23,38 @@ function Hud({ run, week }: { run: ViewRun; week: number }) {
   const dead = s.collapsed;
   const pct = Math.min(100, (s.backlog / p.collapseThreshold) * 100);
   const alert = s.backlog >= p.rescueTrigger;
+  const status = dead
+    ? { text: `第 ${s.week} 週倒閉`, cls: 'bg-coral/40' }
+    : s.inSurge
+      ? { text: `大急單中（+${p.surgeWorkload}/週）`, cls: 'bg-butter/55' }
+      : s.rescueActive
+        ? { text: '救火隊出動', cls: 'bg-butter/55' }
+        : { text: '平常營運', cls: 'bg-blue-soft/20 text-mute' };
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-700 bg-slate-900/90 px-3 py-2 text-xs tabular-nums sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line bg-white px-5 py-3 text-xs tabular-nums sm:grid-cols-4">
       <div className="col-span-2 sm:col-span-4">
-        <div className="mb-1 flex justify-between">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
           <span>
-            待辦 backlog <b className={dead ? 'text-red-400' : alert ? 'text-amber-300' : 'text-white'}>{s.backlog.toFixed(1)}</b>
-            <span className="text-slate-500"> / 紅線 {p.collapseThreshold}</span>
+            <span className="text-mute">待辦 backlog </span>
+            <b className="text-sm text-ink">{s.backlog.toFixed(1)}</b>
+            <span className="text-mute"> / 紅線 {p.collapseThreshold}</span>
           </span>
-          <span>
-            {dead ? (
-              <b className="text-red-400">💀 第 {s.week} 週倒閉</b>
-            ) : s.inSurge ? (
-              <b className="text-orange-300">⚡ 大急單中（+{p.surgeWorkload}/週）</b>
-            ) : s.rescueActive ? (
-              <b className="text-amber-300">🚒 救火隊出動</b>
-            ) : (
-              <span className="text-slate-400">平常營運</span>
-            )}
-          </span>
+          <span className={`rounded-full px-3 py-1 font-semibold text-ink ${status.cls}`}>{status.text}</span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded bg-slate-700">
+        <div className="h-2 overflow-hidden rounded-full bg-line">
           <div
-            className={`h-full ${dead ? 'bg-red-500' : alert ? 'bg-amber-400' : 'bg-sky-400'}`}
+            className={`h-full rounded-full transition-[width] duration-200 ${dead || alert ? 'bg-coral' : 'bg-butter'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
       </div>
-      <div>工作中 <b>{s.counts.WORKING}</b></div>
-      <div>茶水間 <b className="text-emerald-300">{s.counts.RESTING}</b></div>
-      <div>{s.counts.FAKE_BUSY > 0 ? <>座位假忙 <b className="text-slate-300">{s.counts.FAKE_BUSY}</b></> : <>本週新單 <b>{s.newTasks.toFixed(1)}</b></>}</div>
-      <div>過勞 <b className="text-red-300">{s.counts.BURNOUT}</b></div>
-      <div className="col-span-2 sm:col-span-4 text-slate-400">累計產出 {s.totalOutput.toFixed(0)} 件 · 本週產出 {s.output.toFixed(1)}</div>
+      <Stat label="工作中" value={s.counts.WORKING} />
+      <Stat label="茶水間" value={s.counts.RESTING} />
+      {s.counts.FAKE_BUSY > 0 ? <Stat label="座位假忙" value={s.counts.FAKE_BUSY} /> : <Stat label="本週新單" value={s.newTasks.toFixed(1)} />}
+      <Stat label="過勞" value={s.counts.BURNOUT} />
+      <div className="col-span-2 text-mute sm:col-span-4">
+        累計產出 {s.totalOutput.toFixed(0)} 件 · 本週產出 {s.output.toFixed(1)}
+      </div>
     </div>
   );
 }
@@ -58,9 +67,12 @@ interface Props {
 
 export default function SplitView({ runs, clock, week }: Props) {
   return (
-    <div className={`grid h-full min-h-0 min-w-0 gap-px bg-slate-700 ${runs.length > 1 ? 'grid-rows-2 lg:grid-cols-2 lg:grid-rows-1' : ''}`}>
+    <div className={`grid h-full min-h-0 min-w-0 gap-4 ${runs.length > 1 ? 'grid-rows-2 lg:grid-cols-2 lg:grid-rows-1' : ''}`}>
       {runs.map((run, k) => (
-        <div key={k} className="flex min-h-0 min-w-0 flex-col bg-slate-950">
+        <div
+          key={k}
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-white shadow-[0_6px_24px_rgba(80,100,140,0.08)]"
+        >
           <div className="min-h-0 flex-1">
             <Scene3D
               snapshots={run.snapshots}
