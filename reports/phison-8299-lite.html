@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>群聯 8299 投資委員會</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 研究報告式單欄，頂部裁決卡 → 價位尺 → 六位分析師 → 班長裁決 → 行動計畫 */
+:root{
+  --bg:#F5F6F8; --surface:#FFFFFF; --fg:#18202E; --muted:#5B6575; --line:#DDE1E8;
+  --accent:#27408B; --accent-soft:#E6EBF7;
+  --up:#C62828; --down:#1E7F46; --hold:#B26A00; --hold-soft:#FFF3DF;
+  --band:#E9EEF8;
+  --f-display:"Noto Serif TC","Songti TC",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10141C; --surface:#171D28; --fg:#E7EAF0; --muted:#98A2B3; --line:#2A3242;
+  --accent:#8EA6EC; --accent-soft:#1E2840; --up:#F06A63; --down:#4CC783; --hold:#F0AE4A; --hold-soft:#2C2416; --band:#1C2539; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141C; --surface:#171D28; --fg:#E7EAF0; --muted:#98A2B3; --line:#2A3242;
+  --accent:#8EA6EC; --accent-soft:#1E2840; --up:#F06A63; --down:#4CC783; --hold:#F0AE4A; --hold-soft:#2C2416; --band:#1C2539; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.7}
+.wrap{max-width:920px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:40px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:clamp(28px,5vw,40px);font-weight:900}
+h2{font-size:22px;font-weight:600}
+h3{margin:0;font-size:17px}
+p{margin:0}
+.eyebrow{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)}
+section{display:grid;gap:16px}
+.lead{color:var(--muted);max-width:65ch}
+
+/* header */
+header{display:grid;gap:10px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:13px}
+
+/* verdict */
+.verdict{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center}
+.call{display:grid;gap:4px;justify-items:start}
+.call .tag{font-family:var(--f-mono);font-weight:600;font-size:44px;color:var(--hold);line-height:1}
+.call .sub{font-size:13px;color:var(--muted)}
+.verdict ul{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-radius:8px;overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px;display:grid;gap:2px}
+.kpi b{font-family:var(--f-mono);font-size:20px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+@media (max-width:640px){.verdict{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* ladder */
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:520px;height:auto}
+.chart text{font-family:var(--f-mono);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+/* analysts */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:680px){.grid{grid-template-columns:1fr}}
+.analyst{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:10px;align-content:start}
+.analyst header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.analyst .role{font-size:12px;color:var(--muted)}
+.analyst ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:14px}
+.chip{font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap;border:1px solid currentColor}
+.chip.bull{color:var(--up)} .chip.bear{color:var(--down)} .chip.neutral{color:var(--hold)}
+.analyst .take{font-size:14px;border-top:1px dashed var(--line);padding-top:8px}
+
+/* eps bars */
+.bars{display:grid;gap:6px;font-size:13px}
+.bar{display:grid;grid-template-columns:3.2em 1fr 4.5em;gap:8px;align-items:center}
+.bar .track{height:10px;background:var(--band);border-radius:3px}
+.bar .fill{height:100%;background:var(--accent);border-radius:3px}
+.bar .v{text-align:right}
+
+/* tables */
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.06em;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+
+/* chair */
+.chair{background:var(--accent-soft);border-radius:12px;padding:22px;display:grid;gap:12px}
+.chair ol{margin:0;padding-left:1.3em;display:grid;gap:8px}
+.note{font-size:12px;color:var(--muted)}
+.sources{font-size:13px;display:grid;gap:4px;padding-left:1.1em;margin:0}
+.sources a{color:var(--accent)}
+.disclaimer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">投資委員會 · 精簡版 · AI 模擬討論</span>
+  <h1>群聯 Phison <span class="num">8299</span></h1>
+  <div class="meta">
+    <span>報告日期 <span class="num">2026-11-20</span></span>
+    <span>上櫃 · NAND 控制晶片 / 模組</span>
+    <span>價格以台股慣例標色：<b class="up">紅漲</b> <b class="down">綠跌</b></span>
+  </div>
+</header>
+
+<section aria-label="最終決策">
+  <div class="verdict">
+    <div class="call">
+      <span class="eyebrow">班長最終裁決</span>
+      <span class="tag">HOLD</span>
+      <span class="sub">中性偏保守 · 不追空、不搶反彈</span>
+    </div>
+    <ul>
+      <li>獲利仍在歷史高峰（Q3 EPS <span class="num">138</span> 元），估值極低，但市場已在定價「景氣高點」。</li>
+      <li>毛利率見頂、外資降評、NAND 現貨價急跌，短線趨勢偏空。</li>
+      <li>持有者以 <span class="num">1,200</span> 元收盤為防守線；空手者等止跌訊號再分批，不在跌停日接刀。</li>
+    </ul>
+    <div class="kpis">
+      <div class="kpi"><span>11/20 盤中（跌停）</span><b class="down">1,310</b></div>
+      <div class="kpi"><span>距 52 週高 2,880</span><b class="down">−54.5%</b></div>
+      <div class="kpi"><span>2026 前三季 EPS</span><b>325.49</b></div>
+      <div class="kpi"><span>Q3 毛利率</span><b>59.7%</b></div>
+    </div>
+  </div>
+  <p class="note">11/20 價格為 13:08 盤中跌停價（鉅亨網），非正式收盤價。</p>
+</section>
+
+<section aria-labelledby="ladder-h">
+  <h2 id="ladder-h">價位尺：股價、庫藏股區間與外資目標價</h2>
+  <p class="lead">左邊是市場實際價格，右邊是公司買回區間與外資最新目標價。所有標記都按同一比例尺繪製。</p>
+  <div class="chart">
+    <svg viewBox="0 0 640 360" role="img" aria-label="價位尺，從 655 元到 2880 元">
+      <!-- scale: y = 20 + (3000 - p) * 320/2400 -->
+      <g stroke="var(--line)" stroke-width="1">
+        <line x1="40" x2="600" y1="20" y2="20"/>
+        <line x1="40" x2="600" y1="86.7" y2="86.7"/>
+        <line x1="40" x2="600" y1="153.3" y2="153.3"/>
+        <line x1="40" x2="600" y1="220" y2="220"/>
+        <line x1="40" x2="600" y1="286.7" y2="286.7"/>
+      </g>
+      <g fill="var(--muted)" font-size="11">
+        <text x="40" y="16">3,000</text>
+        <text x="40" y="82.7">2,500</text>
+        <text x="40" y="149.3">2,000</text>
+        <text x="40" y="216">1,500</text>
+        <text x="40" y="282.7">1,000</text>
+      </g>
+      <!-- buyback band 1680–2280 -->
+      <rect x="305" y="116" width="30" height="80" fill="var(--hold)" opacity=".22"/>
+      <line x1="320" x2="320" y1="30" y2="340" stroke="var(--muted)" stroke-width="2"/>
+      <!-- left: market prices -->
+      <g fill="var(--fg)">
+        <line x1="300" x2="320" y1="36" y2="36" stroke="var(--fg)" stroke-width="2"/>
+        <text x="294" y="40" text-anchor="end">52 週高 2,880</text>
+        <line x1="300" x2="320" y1="149.3" y2="149.3" stroke="var(--fg)" stroke-width="2"/>
+        <text x="294" y="153.3" text-anchor="end">10/14 1,965</text>
+        <line x1="300" x2="320" y1="200" y2="200" stroke="var(--up)" stroke-width="2"/>
+        <text x="294" y="204" text-anchor="end" fill="var(--up)">11/9 法說漲停 1,650</text>
+        <circle cx="320" cy="245.3" r="6" fill="var(--down)"/>
+        <text x="294" y="249.3" text-anchor="end" fill="var(--down)" font-weight="600">11/20 跌停 1,310</text>
+      </g>
+      <!-- right: targets & buyback -->
+      <g fill="var(--fg)">
+        <text x="346" y="120">庫藏股上限 2,280</text>
+        <text x="346" y="186.4">外資樂觀情境 1,782</text>
+        <text x="346" y="200">庫藏股下限 1,680</text>
+        <line x1="320" x2="340" y1="239.1" y2="239.1" stroke="var(--accent)" stroke-width="2"/>
+        <text x="346" y="243.1" fill="var(--accent)" font-weight="600">外資基本情境 1,357（減碼）</text>
+        <line x1="320" x2="340" y1="332.7" y2="332.7" stroke="var(--accent)" stroke-width="2"/>
+        <text x="346" y="336.7" fill="var(--accent)">外資悲觀情境 655</text>
+      </g>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--hold);opacity:.4"></i>公司庫藏股買回區間（執行至 2027/1/5）</span>
+    <span><i style="background:var(--accent)"></i>外資 11/11 降評後目標價</span>
+  </div>
+</section>
+
+<section aria-labelledby="team-h">
+  <h2 id="team-h">六位分析師意見</h2>
+  <div class="grid">
+
+    <article class="analyst">
+      <header><div><h3>基本面分析師</h3><span class="role">營收・獲利・估值</span></div><span class="chip bull">偏多</span></header>
+      <div class="bars" aria-label="2026 單季 EPS">
+        <div class="bar"><span>Q1</span><div class="track"><div class="fill" style="width:49.9%"></div></div><span class="v num">68.86</span></div>
+        <div class="bar"><span>Q2</span><div class="track"><div class="fill" style="width:85.9%"></div></div><span class="v num">118.57</span></div>
+        <div class="bar"><span>Q3</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="v num">138.06</span></div>
+      </div>
+      <ul>
+        <li>Q3 營收 <span class="num">860.76</span> 億（季增 26.8%、年增 374.6%），稅後 <span class="num">305.48</span> 億，皆創新高。</li>
+        <li>10 月營收 <span class="num">315.30</span> 億，月增 2.9%；PCIe SSD 控制晶片出貨月增 35%。</li>
+        <li>前三季 EPS 已 <span class="num">325</span> 元，若 Q4 持平，全年約 <span class="num">460</span> 元，股價只有約 3 倍本益比。</li>
+      </ul>
+      <p class="take"><b>結論：</b>獲利動能還在，但這是景氣循環高點的本益比，低不代表便宜。</p>
+    </article>
+
+    <article class="analyst">
+      <header><div><h3>技術分析師</h3><span class="role">K 線・均線・支撐壓力</span></div><span class="chip bear">偏空</span></header>
+      <ul>
+        <li>從 52 週高點 2,880 元一路走低，高點越來越低，屬空頭排列。</li>
+        <li>11/9 法說漲停到 1,650 元後完全回吐，近 5 日跌約 11%，11/20 再跌停。</li>
+        <li>跌破庫藏股下限 1,680 元與外資基本目標 1,357 元，上方套牢壓力重。</li>
+        <li>下方缺乏明確支撐，先看 1,200 元整數關卡。</li>
+      </ul>
+      <p class="take"><b>結論：</b>趨勢向下，跌停當天不宜判斷底部，要等量縮止跌再說。</p>
+    </article>
+
+    <article class="analyst">
+      <header><div><h3>總體經濟分析師</h3><span class="role">利率・匯率・Fed</span></div><span class="chip bear">偏空</span></header>
+      <ul>
+        <li>Fed 10 月維持 3.75%–4.00%，但有 2 位委員主張升息，政策偏鷹。</li>
+        <li>美國 10 月 CPI 月增 0.4%，美元指數升至 102.98。</li>
+        <li>新台幣從 10/1 的 31.84 貶到 11/12 的 32.89，外資撤出台股。</li>
+        <li>AI 資本支出疑慮升溫，NVIDIA 執行長更替也讓科技股情緒不穩。</li>
+      </ul>
+      <p class="take"><b>結論：</b>資金環境對高波動的記憶體股不友善。台幣貶值對群聯的帳面獲利略有幫助，但抵不過資金流出。</p>
+    </article>
+
+    <article class="analyst">
+      <header><div><h3>市場情緒分析師</h3><span class="role">法人・籌碼・新聞</span></div><span class="chip bear">偏空</span></header>
+      <ul>
+        <li>11/11 一家外資降評「減碼」，目標價 2,588 → 1,357 元，並承認先前模型有誤。</li>
+        <li>NAND 512Gb TLC 晶圓現貨價三週跌 23.3%（10/19 → 11/9），TrendForce 預期合約價 2027 年第二季轉跌。</li>
+        <li>前一次法說後也是「財報創高、股價重挫」，借券賣出餘額偏高。</li>
+        <li>正面消息：公司進場買回 2,000 張庫藏股。</li>
+      </ul>
+      <p class="take"><b>結論：</b>市場已經從「看獲利」轉成「看拐點」，好消息的作用越來越小。</p>
+    </article>
+
+    <article class="analyst">
+      <header><div><h3>風險管理分析師</h3><span class="role">回撤・停損・部位</span></div><span class="chip neutral">中性</span></header>
+      <ul>
+        <li>距高點已回撤 54.5%，單日漲跌停 ±10%，波動極大。</li>
+        <li>毛利率 Q2 65.3% → Q3 59.7%，執行長自己說未來能守 50% 已不錯，後續可能再降 5–10 個百分點。</li>
+        <li>外資悲觀情境 655 元，代表從現價還有約 50% 下檔風險。</li>
+        <li>但淨現金、庫藏股與高獲利提供一定緩衝。</li>
+      </ul>
+      <p class="take"><b>結論：</b>單一持股上限 5%，持有者以 1,200 元收盤為停損線。</p>
+    </article>
+
+    <article class="analyst">
+      <header><div><h3>投資策略分析師</h3><span class="role">時機・配置・週期</span></div><span class="chip neutral">中性</span></header>
+      <ul>
+        <li><b>短線（1 個月）：</b>不搶跌停反彈，等連續 3 日以上量縮且不破低。</li>
+        <li><b>中線（1–2 季）：</b>關鍵看 12 月營收與 Q4 毛利率是否守住 55%。</li>
+        <li><b>長線（1 年以上）：</b>企業級 SSD 需求仍在成長，公司說 NAND 供給緊張會持續數年，但週期股要在悲觀時買、樂觀時賣。</li>
+      </ul>
+      <p class="take"><b>結論：</b>現在不是加碼點，也不是恐慌賣出點。</p>
+    </article>
+
+  </div>
+</section>
+
+<section aria-labelledby="chair-h">
+  <h2 id="chair-h">班長裁決：為什麼是 HOLD</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>主要分歧</th><th>多方說法</th><th>空方說法</th><th>班長判斷</th></tr></thead>
+      <tbody>
+        <tr><td>估值</td><td>本益比約 3 倍，便宜到不合理</td><td>週期高點本益比最低，獲利會往下修</td><td>空方權重較高。毛利率已經開始下滑</td></tr>
+        <tr><td>NAND 價格</td><td>公司說供給吃緊會持續數年</td><td>現貨價三週跌 23%，合約價可能在 2027 Q2 轉跌</td><td>現貨通常比合約價領先 1–2 季，要嚴肅看待</td></tr>
+        <tr><td>庫藏股</td><td>公司用行動護盤，45.6 億元</td><td>規模約占市值 1.5%，擋不住外資賣壓</td><td>能減緩下跌，但不會改變趨勢</td></tr>
+        <tr><td>總經</td><td>台幣貶值有利出口獲利</td><td>Fed 偏鷹、美元強、外資撤出</td><td>資金面主導短線，偏空</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="chair">
+    <p>表面上是 3 票偏空、2 票中性、1 票偏多，但班長<b>不照多數決改判 SELL</b>，原因有三：</p>
+    <ol>
+      <li>股價已經跌到外資「減碼」的基本目標價 1,357 元以下，賣在跌停價的風險報酬不划算。</li>
+      <li>單季仍賺超過 1 個股本，獲利下修需要時間反映，不太可能一次崩到悲觀情境。</li>
+      <li>空方理由也成立，所以不給 BUY。要等 12 月營收和 Q4 毛利率確認是「緩降」還是「急降」。</li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="plan-h">
+  <h2 id="plan-h">行動計畫</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>你的情況</th><th>建議做法</th><th>轉向條件</th></tr></thead>
+      <tbody>
+        <tr><td>已持有</td><td>續抱，不加碼。反彈到 1,650–1,680 元附近（前次漲停價、庫藏股下限）可先減碼 1/3</td><td>收盤跌破 <span class="num">1,200</span> 元 → 改為 SELL，停損出場</td></tr>
+        <tr><td>空手</td><td>觀望。止跌後最多分 3 批，每批 ≤ 總資金 1.5%</td><td>量縮止跌，且 12 月營收月增、Q4 毛利率 ≥ 55% → 改為 BUY</td></tr>
+        <tr><td>重倉（&gt;10%）</td><td>先降到 5% 以下，控制單一持股風險</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">追蹤時間點：12 月上旬公布 11 月營收、2027 年 1 月上旬公布 12 月營收、2 月 Q4 法說會。</p>
+</section>
+
+<section aria-labelledby="src-h">
+  <h2 id="src-h">資料來源</h2>
+  <ul class="sources">
+    <li><a href="https://statementdog.com/news/18015">財報狗：群聯 Q3 EPS 138 元、庫藏股</a></li>
+    <li><a href="https://uanalyze.com.tw/articles/6392958587">優分析：群聯法說 Q3 創高、買回 2,000 張</a></li>
+    <li><a href="https://uanalyze.com.tw/articles/1094458598">優分析：潘健成談毛利率與企業級 SSD</a></li>
+    <li><a href="https://finance.technews.tw/2026/11/06/phison-8299-202610-financial-report/">科技新報：群聯 10 月營收</a></li>
+    <li><a href="https://finance.technews.tw/2026/11/09/phisons-third-quarter-gross-margin-declined-as-low-priced-inventory-ran-out/">科技新報：Q3 毛利率下滑原因</a></li>
+    <li><a href="https://wantrich.chinatimes.com/news/20261111900103-420101">旺得富：外資降評減碼、目標價 1,357 元</a></li>
+    <li><a href="https://news.cnyes.com/news/id/6668900">鉅亨網：群聯盤中跌停 1,310 元</a></li>
+    <li><a href="https://www.cmoney.tw/forum/stock/8299">CMoney：11/19 股價</a></li>
+    <li><a href="https://xenospectrum.com/en/nand-wafer-spot-price-drop/">NAND 晶圓現貨價下跌（TrendForce 數據）</a></li>
+    <li><a href="https://cna.com.tw/news/afe/202610290316.aspx">中央社：Fed 維持利率、新台幣貶值</a></li>
+    <li><a href="https://www.moneyweekly.com.tw/_Article?AID=261896">理財周刊：美元指數、台幣匯率</a></li>
+    <li><a href="https://www.businesstoday.com.tw/article/category/183008/post/202608270006/">今周刊：自 2,880 元高點回檔</a></li>
+  </ul>
+</section>
+
+<p class="disclaimer">本報告由 AI 模擬六位分析師討論後整理，資料取自公開新聞，未經券商或交易所核對，部分數字（如 Q4 EPS、本益比、庫藏股占市值比例）是推估值。內容僅供研究參考，不構成投資建議，請自行判斷並承擔風險。</p>
+
+</div>
+
+</html>
