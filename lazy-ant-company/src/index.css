@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #0f1115;
+  color: #e6e8ee;
+  font-family: system-ui, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
