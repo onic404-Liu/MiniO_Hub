@@ -79,7 +79,7 @@ export default function App() {
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-6 pt-4 pb-3">
         <h1 className="flex items-center gap-2 text-lg font-bold">
           <Blob color={PALETTE.blue} size={22} />
-          懶螞蟻公司模擬器
+          Crazy Warehouse
         </h1>
         <p className="text-xs text-mute">反應門檻 × 過勞機制 × 大急單衝擊 · 3D ABM</p>
       </header>
