@@ -15,9 +15,7 @@ function useRun(id: PresetId, seed: number): ViewRun {
 }
 
 export default function App() {
-  const [split, setSplit] = useState(true);
   const [presetA, setPresetA] = useState<PresetId>('baseline');
-  const [presetB, setPresetB] = useState<PresetId>('fire_slackers');
   const [seed, setSeed] = useState(42);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
@@ -25,8 +23,7 @@ export default function App() {
   const clock = useRef<PlaybackClock>({ t: 0 });
 
   const runA = useRun(presetA, seed);
-  const runB = useRun(presetB, seed);
-  const runs = split ? [runA, runB] : [runA];
+  const runs = [runA];
   const maxIndex = Math.max(...runs.map((r) => r.snapshots.length - 1));
   const maxRef = useRef(maxIndex);
   maxRef.current = maxIndex;
@@ -62,7 +59,7 @@ export default function App() {
   }, [jump]);
 
   // New seed / preset → restart from week 0.
-  useEffect(reset, [seed, presetA, presetB, split, reset]);
+  useEffect(reset, [seed, presetA, reset]);
 
   const step = () => {
     setPlaying(false);
@@ -88,12 +85,8 @@ export default function App() {
       </header>
       <div className="px-4">
       <ControlPanel
-        split={split}
-        onSplit={setSplit}
         presetA={presetA}
-        presetB={presetB}
         onPresetA={setPresetA}
-        onPresetB={setPresetB}
         seed={seed}
         onSeed={setSeed}
         playing={playing}
